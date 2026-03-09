@@ -96,12 +96,8 @@ const Header = ({ user, onLogout }) => {
 
     if (user) {
       fetchUnreadCount();
-      // 连接WebSocket并添加监听器
-      const token = localStorage.getItem('token');
-      if (token) {
-        wsService.connect(token);
-        wsService.on('*', handleWebSocketMessage);
-      }
+      // 只添加监听器，不调用connect（由authStore统一管理）
+      wsService.on('*', handleWebSocketMessage);
     }
 
     // 请求浏览器通知权限

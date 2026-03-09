@@ -113,7 +113,7 @@ class MySQLOperations:
     
     @staticmethod
     def create_check_item(db: Session, project_id: int, check_id: str, dimension: str, issue_description: str, 
-                        customer_question: str, required_info: str, suggestion: str, risk_level: str = "medium") -> CheckItem:
+                        customer_question: str, required_info: str, suggestion: str) -> CheckItem:
         """创建检查项"""
         check_item = CheckItem(
             project_id=project_id,
@@ -122,8 +122,7 @@ class MySQLOperations:
             issue_description=issue_description,
             customer_question=customer_question,
             required_info=required_info,
-            suggestion=suggestion,
-            risk_level=risk_level
+            suggestion=suggestion
         )
         db.add(check_item)
         db.commit()

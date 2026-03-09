@@ -47,8 +47,7 @@ def perform_quality_check(project_id: int, user_id: int):
         
         # 获取数据库客户端
         db = get_db()
-        mongo_db = get_mongo_db()
-        
+        mongo_db = get_mongo_db()        
         try:
             # 获取项目信息
             project = MySQLOperations.get_project_by_id(db, project_id)
@@ -101,8 +100,7 @@ def perform_quality_check(project_id: int, user_id: int):
                     issue_description=item.get("模糊点描述", ""),
                     customer_question=item.get("客户提问", ""),
                     required_info=item.get("需补充明确的内容", ""),
-                    suggestion=item.get("修改建议", ""),
-                    risk_level=item.get("风险等级", "medium")
+                    suggestion=item.get("修改建议", "")
                 )
                 check_items.append(check_item)
 
@@ -118,8 +116,7 @@ def perform_quality_check(project_id: int, user_id: int):
                     "issue_description": item.issue_description,
                     "customer_question": item.customer_question,
                     "required_info": item.required_info,
-                    "suggestion": item.suggestion,
-                    "risk_level": item.risk_level
+                    "suggestion": item.suggestion
                 }
                 for item in check_items
             ]
@@ -343,165 +340,6 @@ async def optimize_prd(
             detail=str(e)
         )
 
-
-# 差异对比API
-@router.get("/diff/{project_id}")
-async def get_diff(
-    project_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-    mongo_db: Database = Depends(get_mongo_db)
-):
-    """获取PRD差异对比"""
-    # 检查项目是否存在
-    project = MySQLOperations.get_project_by_id(db, project_id)
-    if not project:
-        raise BusinessException(ErrorCode.PROJECT_NOT_FOUND)
-
-    # 检查项目是否属于当前用户
-    if project.user_id != current_user.id:
-        raise BusinessException(ErrorCode.PROJECT_ACCESS_DENIED)
-
-    # 获取原始PRD和优化版PRD
-    original_prd = MongoOperations.get_prd_content_by_project_id(
-        mongo_db, project_id, is_optimized=False
-    )
-    optimized_prd = MongoOperations.get_prd_optimized_by_project_id(mongo_db, project_id)
-
-    if not original_prd or not optimized_prd:
-        raise BusinessException(
-            ErrorCode.PRD_NOT_FOUND,
-            detail="需要原始PRD和优化版PRD才能进行对比"
-        )
-
-    try:
-        # 检查是否已有差异记录
-        existing_diff = MongoOperations.get_prd_diff_by_project_id(mongo_db, project_id)
-        if existing_diff:
-            # 转换为响应格式
-            diff_items = [
-                PRDDiffItem(
-                    id=str(item.id),
-                    type=item.type,
-                    original=item.original,
-                    modified=item.modified,
-                    status=item.status
-                )
-                for item in existing_diff.diff_items
-            ]
-            return PRDDiffResponse(
-                id=str(existing_diff.id),
-                project_id=existing_diff.project_id,
-                diff_items=diff_items,
-                accepted_count=existing_diff.accepted_count,
-                rejected_count=existing_diff.rejected_count
-            )
-
-        # 生成差异对比（这里使用简单的模拟实现）
-        # 实际项目中应该使用更复杂的差异算法
-        diff_items = [
-            {
-                "type": "modify",
-                "original": "原始内容示例",
-                "modified": "优化后内容示例",
-                "status": "pending"
-            }
-        ]
-
-        # 保存差异对比到MongoDB
-        prd_diff = MongoOperations.create_prd_diff(
-            db=mongo_db,
-            project_id=project_id,
-            original_prd_id=str(original_prd.id),
-            optimized_prd_id=str(optimized_prd.id),
-            diff_items=diff_items
-        )
-
-        # 转换为响应格式
-        response_items = [
-            PRDDiffItem(
-                id=str(item.get("id", "")),
-                type=item.get("type"),
-                original=item.get("original"),
-                modified=item.get("modified"),
-                status=item.get("status")
-            )
-            for item in diff_items
-        ]
-
-        return PRDDiffResponse(
-            id=str(prd_diff.id),
-            project_id=prd_diff.project_id,
-            diff_items=response_items,
-            accepted_count=prd_diff.accepted_count,
-            rejected_count=prd_diff.rejected_count
-        )
-    except BusinessException:
-        raise
-    except Exception as e:
-        raise BusinessException(
-            ErrorCode.SYSTEM_ERROR,
-            detail=f"生成差异对比失败: {str(e)}"
-        )
-
-
-# 差异项状态更新API
-@router.put("/diff/{diff_id}/item/{item_index}")
-async def update_diff_item(
-    diff_id: str,
-    item_index: int,
-    status: str,
-    current_user: User = Depends(get_current_user),
-    mongo_db: Database = Depends(get_mongo_db)
-):
-    """更新差异项状态"""
-    # 验证状态值
-    if status not in ["accepted", "rejected", "pending"]:
-        raise BusinessException(
-            ErrorCode.VALIDATION_ERROR,
-            detail="状态必须是 'accepted', 'rejected', 或 'pending'"
-        )
-
-    try:
-        # 更新差异项状态
-        updated_diff = MongoOperations.update_diff_item_status(
-            mongo_db, diff_id, item_index, status
-        )
-
-        if not updated_diff:
-            raise BusinessException(
-                ErrorCode.PRD_NOT_FOUND,
-                detail="差异项不存在"
-            )
-
-        # 转换为响应格式
-        diff_items = [
-            PRDDiffItem(
-                id=str(item.id),
-                type=item.type,
-                original=item.original,
-                modified=item.modified,
-                status=item.status
-            )
-            for item in updated_diff.diff_items
-        ]
-
-        return PRDDiffResponse(
-            id=str(updated_diff.id),
-            project_id=updated_diff.project_id,
-            diff_items=diff_items,
-            accepted_count=updated_diff.accepted_count,
-            rejected_count=updated_diff.rejected_count
-        )
-    except BusinessException:
-        raise
-    except Exception as e:
-        raise BusinessException(
-            ErrorCode.SYSTEM_ERROR,
-            detail=f"更新差异项失败: {str(e)}"
-        )
-
-
 # 获取PRD内容API
 @router.get("/content/{project_id}/{prd_id}")
 async def get_prd_content(
@@ -653,8 +491,7 @@ async def get_check_items(
             "issue_description": item.issue_description,
             "customer_question": item.customer_question,
             "required_info": item.required_info,
-            "suggestion": item.suggestion,
-            "risk_level": item.risk_level
+            "suggestion": item.suggestion
         }
         for item in check_items
     ]
@@ -694,8 +531,7 @@ async def update_check_item(
         issue_description=request.issue_description,
         customer_question=request.customer_question,
         required_info=request.required_info,
-        suggestion=request.suggestion,
-        risk_level=request.risk_level
+        suggestion=request.suggestion
     )
 
     # 转换为响应格式
@@ -706,8 +542,7 @@ async def update_check_item(
         "issue_description": updated_check_item.issue_description,
         "customer_question": updated_check_item.customer_question,
         "required_info": updated_check_item.required_info,
-        "suggestion": updated_check_item.suggestion,
-        "risk_level": updated_check_item.risk_level
+        "suggestion": updated_check_item.suggestion
     }
 
 

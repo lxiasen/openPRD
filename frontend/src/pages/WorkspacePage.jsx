@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import NewProjectModal from '../components/NewProjectModal';
 import EditProjectModal from '../components/EditProjectModal';
 import TemplateLibraryModal from '../components/TemplateLibraryModal';
+import EditCheckItemModal from '../components/EditCheckItemModal';
 import { projectApi, prdApi, wsService, authApi } from '../services/api';
 import '../styles/common.css';
 
@@ -33,6 +34,8 @@ const WorkspacePage = () => {
   const [ws, setWs] = useState(null);
   const [notification, setNotification] = useState(null);
   const [user, setUser] = useState(null);
+  const [isEditCheckItemModalOpen, setIsEditCheckItemModalOpen] = useState(false);
+  const [editingCheckItem, setEditingCheckItem] = useState(null);
 
   // 获取项目列表
   useEffect(() => {
@@ -124,13 +127,9 @@ const WorkspacePage = () => {
       }
     };
 
-    // 只有在用户存在且有token时才建立WebSocket连接
+    // 只有在用户存在时才添加监听器，不调用connect（由authStore统一管理）
     if (user) {
-      const token = localStorage.getItem('token');
-      if (token) {
-        wsService.connect(token);
-        wsService.on('quality_check_result', handleQualityCheckResult);
-      }
+      wsService.on('quality_check_result', handleQualityCheckResult);
     }
 
     return () => {
@@ -260,6 +259,90 @@ const WorkspacePage = () => {
     setPrdContent('');
     setCheckItems([]);
     setOptimizedPrdContent('');
+  };
+
+  // 打开编辑检查项模态框
+  const handleEditCheckItem = (checkItem) => {
+    setEditingCheckItem(checkItem);
+    setIsEditCheckItemModalOpen(true);
+  };
+
+  // 关闭编辑检查项模态框
+  const handleCloseEditCheckItemModal = () => {
+    setIsEditCheckItemModalOpen(false);
+    setEditingCheckItem(null);
+  };
+
+  // 更新检查项
+  const handleUpdateCheckItem = async (checkItemData) => {
+    try {
+      setLoading(true);
+      await prdApi.updateCheckItem(editingCheckItem.id, checkItemData);
+      
+      // 更新本地检查项列表
+      const updatedCheckItems = checkItems.map(item => 
+        item.id === editingCheckItem.id ? { ...item, ...checkItemData } : item
+      );
+      setCheckItems(updatedCheckItems);
+      setIsEditCheckItemModalOpen(false);
+      setEditingCheckItem(null);
+      setNotification({
+        type: 'success',
+        message: '检查项更新成功！'
+      });
+      // 3秒后自动隐藏通知
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+    } catch (error) {
+      console.error('更新检查项失败:', error);
+      setNotification({
+        type: 'error',
+        message: '更新检查项失败，请重试'
+      });
+      // 3秒后自动隐藏通知
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 删除检查项
+  const handleDeleteCheckItem = async (checkItemId, checkItemDescription) => {
+    if (!window.confirm(`确定要删除检查项"${checkItemDescription}"吗？此操作不可恢复。`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await prdApi.deleteCheckItem(checkItemId);
+      
+      // 从本地检查项列表中移除
+      const updatedCheckItems = checkItems.filter(item => item.id !== checkItemId);
+      setCheckItems(updatedCheckItems);
+      setNotification({
+        type: 'success',
+        message: '检查项删除成功！'
+      });
+      // 3秒后自动隐藏通知
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+    } catch (error) {
+      console.error('删除检查项失败:', error);
+      setNotification({
+        type: 'error',
+        message: '删除检查项失败，请重试'
+      });
+      // 3秒后自动隐藏通知
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (projectData) => {
@@ -461,6 +544,14 @@ const WorkspacePage = () => {
         initialData={editingProject}
       />
 
+      {/* 编辑检查项弹窗 */}
+      <EditCheckItemModal
+        isOpen={isEditCheckItemModalOpen}
+        onClose={handleCloseEditCheckItemModal}
+        onSubmit={handleUpdateCheckItem}
+        initialData={editingCheckItem}
+      />
+
       {/* 项目详情抽屉 */}
       {isDrawerOpen && selectedProject && (
         <div className="drawer-overlay" onClick={handleCloseDrawer}>
@@ -556,9 +647,9 @@ const WorkspacePage = () => {
                           onClick={async () => {
                             setIsOptimizing(true);
                             try {
-                              await prdApi.optimizePRD(selectedProject.id);
-                              const optimizedResult = await prdApi.getOptimizationResult(selectedProject.id);
-                              setOptimizedPrdContent(optimizedResult.content || '');
+                              const optimizeResult = await prdApi.optimizePRD(selectedProject.id);
+                              const optimizedPrdContent = await prdApi.getPRDContent(selectedProject.id, optimizeResult.optimized_prd_id);
+                              setOptimizedPrdContent(optimizedPrdContent.content || '');
                               setIsOptimizing(false);
                               setActiveTab('diff');
                               setNotification({
@@ -612,8 +703,8 @@ const WorkspacePage = () => {
                                 <td>{item.suggestion}</td>
                                 <td>
                                   <div className="flex gap-2">
-                                    <button className="btn-text">修改</button>
-                                    <button className="btn-text btn-text-danger">删除</button>
+                                    <button className="btn-text" onClick={() => handleEditCheckItem(item)}>修改</button>
+                                    <button className="btn-text btn-text-danger" onClick={() => handleDeleteCheckItem(item.id, item.issue_description)}>删除</button>
                                   </div>
                                 </td>
                               </tr>

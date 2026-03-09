@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { authApi } from '../services/api';
+import { authApi, wsService } from '../services/api';
 
 const useAuthStore = create(
   persist(
@@ -24,6 +24,9 @@ const useAuthStore = create(
           // 获取用户信息
           const userInfo = await authApi.getMe();
           
+          // 建立WebSocket连接
+          wsService.connect(response.access_token);
+          
           set({ user: userInfo, token: response.access_token, isLoading: false });
           return { success: true };
         } catch (error) {
@@ -42,6 +45,9 @@ const useAuthStore = create(
           
           localStorage.setItem('token', response.access_token);
           
+          // 建立WebSocket连接
+          wsService.connect(response.access_token);
+          
           set({ user: response.user, token: response.access_token, isLoading: false });
           return { success: true };
         } catch (error) {
@@ -53,10 +59,12 @@ const useAuthStore = create(
       },
 
       // 登出
-      logout: () => {
-        localStorage.removeItem('token');
-        set({ user: null, token: null, error: null });
-      },
+  logout: () => {
+    localStorage.removeItem('token');
+    // 断开WebSocket连接
+    wsService.disconnect();
+    set({ user: null, token: null, error: null });
+  },
 
       // 清除错误
       clearError: () => {
@@ -69,6 +77,8 @@ const useAuthStore = create(
         if (token) {
           try {
             const userInfo = await authApi.getMe();
+            // 建立WebSocket连接
+            wsService.connect(token);
             set({ user: userInfo, token: token });
           } catch (error) {
             console.error('验证token失败:', error);

@@ -10,7 +10,16 @@ logger = get_logger(__name__)
 
 # 创建SQLAlchemy引擎
 # 连接字符串格式: mysql+pymysql://用户名:密码@主机:端口/数据库名
-engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True, pool_recycle=3600, echo=settings.DEBUG)
+# 优化连接池配置，增加连接池容量以应对WebSocket长连接
+engine = create_engine(
+    settings.DATABASE_URL, 
+    pool_pre_ping=True, 
+    pool_recycle=3600, 
+    echo=settings.DEBUG,
+    pool_size=20,  # 增加连接池大小
+    max_overflow=10,  # 增加最大溢出连接数
+    pool_timeout=60  # 增加连接超时时间
+)
 
 # 创建模型基类，所有SQLAlchemy模型都将继承自这个基类
 Base = declarative_base()

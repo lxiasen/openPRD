@@ -64,7 +64,6 @@ class CheckItem(BaseMySQLModel):
     customer_question = Column(Text, nullable=False)  # 客户提问
     required_info = Column(Text, nullable=False)  # 需补充明确的内容
     suggestion = Column(Text, nullable=False)  # 修改建议
-    risk_level = Column(String(20), default="medium")  # 风险等级
     
     # 关系
     project = relationship("Project", back_populates="check_items")

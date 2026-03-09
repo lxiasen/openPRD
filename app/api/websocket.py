@@ -10,17 +10,8 @@ from app.api.auth import verify_token
 router = APIRouter(tags=["WebSocket"])
 
 
-def get_db_websocket():
-    """WebSocket专用的数据库会话获取"""
-    db = get_db()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
 @router.websocket("/ws/notifications")
-async def websocket_notifications(websocket: WebSocket, db: Session = Depends(get_db_websocket)):
+async def websocket_notifications(websocket: WebSocket):
     """WebSocket实时通知接口"""
     user_id = None
     
@@ -45,13 +36,21 @@ async def websocket_notifications(websocket: WebSocket, db: Session = Depends(ge
         # 注意：sub字段是用户名（字符串），不是用户ID（整数）
         username = user_id_str
         
-        # 从数据库中获取用户ID
-        user = db.query(User).filter(User.username == username).first()
-        if not user:
-            await websocket.close(code=4001, reason="User not found")
-            return
-        
-        user_id = user.id
+        # 临时获取数据库连接进行用户验证
+        from app.utils.mysql_client import get_mysql_client
+        mysql_client = get_mysql_client()
+        db = mysql_client.create_session()
+        try:
+            # 从数据库中获取用户ID
+            user = db.query(User).filter(User.username == username).first()
+            if not user:
+                await websocket.close(code=4001, reason="User not found")
+                return
+            
+            user_id = user.id
+        finally:
+            # 立即关闭数据库连接
+            db.close()
         
         # 建立连接
         await manager.connect(websocket, user_id)
@@ -74,15 +73,23 @@ async def websocket_notifications(websocket: WebSocket, db: Session = Depends(ge
                 if message.get("type") == "ping":
                     await websocket.send_json({"type": "pong"})
                 elif message.get("type") == "get_unread":
-                    # 获取未读通知数量
-                    unread_count = db.query(Notification).filter(
-                        Notification.user_id == user_id,
-                        Notification.is_read == False
-                    ).count()
-                    await websocket.send_json({
-                        "type": "unread_count",
-                        "count": unread_count
-                    })
+                    # 临时获取数据库连接查询未读通知
+                    from app.utils.mysql_client import get_mysql_client
+                    mysql_client = get_mysql_client()
+                    db = mysql_client.create_session()
+                    try:
+                        # 获取未读通知数量
+                        unread_count = db.query(Notification).filter(
+                            Notification.user_id == user_id,
+                            Notification.is_read == False
+                        ).count()
+                        await websocket.send_json({
+                            "type": "unread_count",
+                            "count": unread_count
+                        })
+                    finally:
+                        # 立即关闭数据库连接
+                        db.close()
                     
             except WebSocketDisconnect:
                 break

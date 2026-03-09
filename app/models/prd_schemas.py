@@ -28,7 +28,6 @@ class CheckItemResponse(BaseModel):
     customer_question: str
     required_info: str
     suggestion: str
-    risk_level: str
 
 
 class CheckItemUpdateRequest(BaseModel):
@@ -38,7 +37,6 @@ class CheckItemUpdateRequest(BaseModel):
     customer_question: Optional[str] = Field(None, description="客户提问")
     required_info: Optional[str] = Field(None, description="需补充明确的内容")
     suggestion: Optional[str] = Field(None, description="修改建议")
-    risk_level: Optional[str] = Field(None, description="风险等级", pattern="^(low|medium|high)$")
 
 
 class PRDOptimizeRequest(BaseModel):
