@@ -1,0 +1,23 @@
+# 核心依赖
+fastapi==0.125.0
+uvicorn==0.38.0
+python-dotenv==1.1.1
+pydantic==2.12.5
+pydantic-settings==2.12.0
+pyyaml==6.0.3
+
+# 数据库依赖
+sqlalchemy==2.0.23
+pymysql==1.1.0
+pymongo==4.6.2
+
+# 认证依赖
+passlib==1.7.4
+python-jose[cryptography]==3.3.0
+bcrypt==4.1.2
+
+# 可选依赖（根据项目需求安装）
+# neo4j==6.0.3       # Neo4j 数据库客户端
+# openai==2.14.0      # OpenAI 客户端
+# cachetools==6.2.4   # 缓存工具
+# pymilvus==2.5.11    # Milvus 向量数据库客户端
