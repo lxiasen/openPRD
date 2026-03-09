@@ -16,7 +16,6 @@ class PRDContent(BaseModel):
     content: str
     title: str
     version: int
-    is_optimized: bool
 
 
 class CheckItemResponse(BaseModel):
@@ -42,36 +41,3 @@ class CheckItemUpdateRequest(BaseModel):
 class PRDOptimizeRequest(BaseModel):
     """PRD优化请求模型"""
     project_id: int = Field(..., ge=1, description="项目ID")
-
-
-class PRDDiffItem(BaseModel):
-    """PRD差异项模型"""
-    id: str
-    type: str
-    original: str
-    modified: str
-    status: str
-
-
-class PRDDiffResponse(BaseModel):
-    """PRD差异响应模型"""
-    id: str
-    project_id: int
-    diff_items: List[PRDDiffItem]
-    accepted_count: int
-    rejected_count: int
-
-
-class ExportRequest(BaseModel):
-    """导出请求模型"""
-    project_id: int = Field(..., ge=1, description="项目ID")
-    format: str = Field(..., description="导出格式", pattern="^(markdown|word|pdf|excel)$")
-
-
-class ExportResponse(BaseModel):
-    """导出响应模型"""
-    id: str
-    project_id: int
-    export_format: str
-    file_path: str
-    status: str

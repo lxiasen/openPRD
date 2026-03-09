@@ -10,7 +10,6 @@ class ProjectStatus(str, enum.Enum):
     CREATED = "created"
     ANALYZED = "analyzed"
     OPTIMIZED = "optimized"
-    EXPORTED = "exported"
 
 
 class BaseMySQLModel(Base):

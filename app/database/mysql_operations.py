@@ -299,7 +299,7 @@ class MySQLOperations:
         # 已完成项目数（OPTIMIZED 或 EXPORTED 状态）
         completed_projects = db.query(func.count(Project.id)).filter(
             Project.user_id == user_id,
-            Project.status.in_([ProjectStatus.OPTIMIZED, ProjectStatus.EXPORTED])
+            Project.status.in_([ProjectStatus.OPTIMIZED])
         ).scalar() or 0
         
         # 本周新增项目数

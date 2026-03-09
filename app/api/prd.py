@@ -20,11 +20,7 @@ from app.models.prd_schemas import (
     PRDContent,
     CheckItemResponse,
     CheckItemUpdateRequest,
-    PRDOptimizeRequest,
-    PRDDiffItem,
-    PRDDiffResponse,
-    ExportRequest,
-    ExportResponse,
+    PRDOptimizeRequest
 )
 from app.api.auth import get_current_user
 from app.api.notification import create_quality_check_notification
@@ -66,7 +62,7 @@ def perform_quality_check(project_id: int, user_id: int):
 
             # 获取PRD内容
             prd_content = MongoOperations.get_prd_content_by_project_id(
-                mongo_db, project_id, is_optimized=False
+                mongo_db, project_id
             )
             if not prd_content:
                 # 发送失败通知
@@ -204,8 +200,7 @@ async def upload_prd(
             project_id=project.id,
             content=content_str,
             title=project_name or file.filename,
-            version=1,
-            is_optimized=False
+            version=1
         )
 
         # 更新项目的PRD原始ID
@@ -245,7 +240,7 @@ async def quality_check(
 
     # 获取PRD内容
     prd_content = MongoOperations.get_prd_content_by_project_id(
-        mongo_db, project_id, is_optimized=False
+        mongo_db, project_id
     )
     if not prd_content:
         raise BusinessException(ErrorCode.PRD_NOT_FOUND)
@@ -282,7 +277,7 @@ async def optimize_prd(
 
     # 获取PRD内容
     prd_content = MongoOperations.get_prd_content_by_project_id(
-        mongo_db, project_id, is_optimized=False
+        mongo_db, project_id
     )
     if not prd_content:
         raise BusinessException(ErrorCode.PRD_NOT_FOUND)
@@ -315,6 +310,7 @@ async def optimize_prd(
             db=mongo_db,
             project_id=project_id,
             original_prd_id=str(prd_content.id),
+            title=prd_content.title,
             content=optimized_content,
             version=1
         )
@@ -385,82 +381,6 @@ async def get_prd_content(
         "content": prd_content.content,
         "title": prd_content.title
     }
-
-# PRD导出API
-@router.post("/export")
-async def export_prd(
-    export_request: ExportRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-    mongo_db: Database = Depends(get_mongo_db)
-):
-    """导出PRD"""
-    # 检查项目是否存在
-    project = MySQLOperations.get_project_by_id(db, export_request.project_id)
-    if not project:
-        raise BusinessException(ErrorCode.PROJECT_NOT_FOUND)
-
-    # 检查项目是否属于当前用户
-    if project.user_id != current_user.id:
-        raise BusinessException(ErrorCode.PROJECT_ACCESS_DENIED)
-
-    # 验证导出格式
-    valid_formats = ["markdown", "word", "pdf", "excel"]
-    if export_request.format not in valid_formats:
-        raise BusinessException(
-            ErrorCode.VALIDATION_ERROR,
-            detail=f"不支持的格式，必须是以下之一: {', '.join(valid_formats)}"
-        )
-
-    try:
-        # 获取优化版PRD
-        optimized_prd = MongoOperations.get_prd_optimized_by_project_id(
-            mongo_db, export_request.project_id
-        )
-        if not optimized_prd:
-            # 如果没有优化版，使用原始PRD
-            optimized_prd = MongoOperations.get_prd_content_by_project_id(
-                mongo_db, export_request.project_id, is_optimized=False
-            )
-
-        if not optimized_prd:
-            raise BusinessException(ErrorCode.PRD_NOT_FOUND)
-
-        # 模拟导出过程
-        # 实际项目中应该根据不同格式生成对应的文件
-        time.sleep(1)  # 模拟处理时间
-
-        # 创建导出记录
-        export_record = MongoOperations.create_export_record(
-            db=mongo_db,
-            project_id=export_request.project_id,
-            export_format=export_request.format,
-            file_path=f"/exports/prd_{export_request.project_id}.{export_request.format}",
-            status="completed"
-        )
-
-        # 更新项目状态
-        MySQLOperations.update_project(
-            db,
-            export_request.project_id,
-            status=ProjectStatus.EXPORTED
-        )
-
-        return ExportResponse(
-            id=str(export_record.id),
-            project_id=export_record.project_id,
-            export_format=export_record.export_format,
-            file_path=export_record.file_path,
-            status=export_record.status
-        )
-    except BusinessException:
-        raise
-    except Exception as e:
-        raise BusinessException(
-            ErrorCode.PRD_EXPORT_FAILED,
-            detail=str(e)
-        )
-
 
 # 获取检查项列表API
 @router.get("/check-items/{project_id}")

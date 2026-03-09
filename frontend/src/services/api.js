@@ -274,8 +274,7 @@ export const prdApi = {
   // 获取优化结果
   getOptimizationResult: (projectId) => request(`/prd/optimization/${projectId}`),
   
-  // 导出PRD
-  exportPRD: (projectId, format) => request(`/prd/export/${projectId}?format=${format}`),
+
   
   // 获取PRD内容
   getPRDContent: (projectId, prdId) => request(`/prd/content/${projectId}/${prdId}`),

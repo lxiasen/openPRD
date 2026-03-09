@@ -720,9 +720,25 @@ const WorkspacePage = () => {
                     <div className="diff-header">
                       <h3>PRD对比</h3>
                       <button className="btn btn-secondary"
-                        onClick={async () => {
+                        onClick={() => {
                           try {
-                            await prdApi.exportPRD(selectedProject.id, 'markdown');
+                            // 使用已有的PRD内容
+                            let content = optimizedPrdContent || prdContent;
+                            if (!content) {
+                              throw new Error('PRD内容不存在');
+                            }
+                            
+                            // 创建下载链接
+                            const blob = new Blob([content], { type: 'text/markdown' });
+                            const url = window.URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = `${selectedProject.name}.md`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            window.URL.revokeObjectURL(url);
+                            
                             alert('PRD导出成功！');
                           } catch (error) {
                             console.error('PRD导出失败:', error);
