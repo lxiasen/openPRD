@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NewProjectModal from '../components/NewProjectModal';
 import EditProjectModal from '../components/EditProjectModal';
 import TemplateLibraryModal from '../components/TemplateLibraryModal';
 import EditCheckItemModal from '../components/EditCheckItemModal';
+import { DiffView, DiffModeEnum } from "@git-diff-view/react";
+import { generateDiffFile } from "@git-diff-view/file";
+import "@git-diff-view/react/styles/diff-view.css";
 import { projectApi, prdApi, wsService, authApi } from '../services/api';
 import '../styles/common.css';
 
@@ -36,6 +39,22 @@ const WorkspacePage = () => {
   const [user, setUser] = useState(null);
   const [isEditCheckItemModalOpen, setIsEditCheckItemModalOpen] = useState(false);
   const [editingCheckItem, setEditingCheckItem] = useState(null);
+
+  // 生成 diff 文件
+  const getDiffFile = () => {
+    const instance = generateDiffFile(
+      "原始PRD",
+      prdContent,
+      "优化后PRD",
+      optimizedPrdContent,
+      "md",
+      "md"
+    );
+    instance.initRaw();
+    return instance;
+  };
+
+  const diffFile = useMemo(() => getDiffFile(), [prdContent, optimizedPrdContent]);
 
   // 获取项目列表
   useEffect(() => {
@@ -241,8 +260,18 @@ const WorkspacePage = () => {
         setCheckItems([]);
       }
       
-      // 模拟优化后的PRD
-      setOptimizedPrdContent('');
+      // 获取优化后的PRD内容
+      if (project.prd_optimized_id) {
+        try {
+          const optimizedPrdResult = await prdApi.getPRDContent(projectId, project.prd_optimized_id);
+          setOptimizedPrdContent(optimizedPrdResult.content || '');
+        } catch (error) {
+          console.error('获取优化后PRD失败:', error);
+          setOptimizedPrdContent('');
+        }
+      } else {
+        setOptimizedPrdContent('');
+      }
     } catch (error) {
       console.error('获取项目详情失败:', error);
       alert('获取项目详情失败，请重试');
@@ -750,18 +779,21 @@ const WorkspacePage = () => {
                       </button>
                     </div>
                     <div className="diff-content">
-                      <div className="diff-side">
-                        <h4>原始PRD</h4>
-                        <div className="diff-text">
-                          <pre>{prdContent}</pre>
+                      {optimizedPrdContent ? (
+                        <div style={{ width: '100%', height: '600px', overflow: 'auto' }}>
+                          <DiffView
+                            diffFile={diffFile}
+                            diffViewWrap={false}
+                            diffViewTheme={"light"}
+                            diffViewHighlight={true}
+                            diffViewMode={DiffModeEnum.Split}
+                          />
                         </div>
-                      </div>
-                      <div className="diff-side">
-                        <h4>优化后PRD</h4>
-                        <div className="diff-text">
-                          <pre>{optimizedPrdContent || '暂无优化内容'}</pre>
+                      ) : (
+                        <div className="no-diff-content">
+                          <p>暂无优化内容，请先点击"PRD优化"按钮生成优化后的PRD。</p>
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 )}

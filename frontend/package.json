@@ -10,12 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@git-diff-view/file": "^0.1.1",
+    "@git-diff-view/react": "^0.1.1",
     "@headlessui/react": "^2.2.9",
     "@uiw/react-md-editor": "^4.0.11",
     "framer-motion": "^12.34.4",
     "lucide-react": "^0.576.0",
     "react": "^18.2.0",
-    "react-diff-viewer-continued": "^3.4.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.13.1",
     "zustand": "^5.0.11"
