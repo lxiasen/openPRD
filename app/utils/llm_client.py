@@ -1,5 +1,5 @@
 import json
-from openai import AzureOpenAI
+from openai import OpenAI
 from openai.resources.chat import Chat, Completions
 
 
@@ -102,10 +102,9 @@ class LLMClient:
     
     def __init__(self):
         # 初始化Azure OpenAI客户端
-        self.client = AzureOpenAI(
-            azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
-            api_key=settings.AZURE_OPENAI_API_KEY,
-            api_version=settings.AZURE_OPENAI_API_VERSION
+        self.client = OpenAI(
+            base_url=settings.AZURE_OPENAI_ENDPOINT,
+            api_key=settings.AZURE_OPENAI_API_KEY
         )
     
     @property
@@ -291,7 +290,7 @@ class LLMClient:
             model=settings.AZURE_OPENAI_CHAT_DEPLOYMENT,
             messages=messages,
             temperature=0.3,
-            max_tokens=4000
+            max_tokens=10000
         )
         
         # 返回优化后的内容
